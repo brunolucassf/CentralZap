@@ -1,0 +1,43 @@
+# === Dependências ===
+node_modules/
+.pnp
+.pnp.js
+
+# === Variáveis de ambiente (contêm segredos) ===
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# === Banco de dados SQLite (dados reais dos usuários) ===
+*.db
+*.db-journal
+prisma/dev.db
+prisma/dev.db-journal
+
+# === Sessões do WhatsApp (credenciais logadas = acesso a contas reais) ===
+sessions/
+backend/sessions/
+
+# === Logs ===
+*.log
+backend-boot.log
+backend.log
+backend.err
+frontend.log
+frontend.err
+
+# === Build do frontend ===
+frontend/dist/
+dist/
+
+# === Arquivos de teste temporários ===
+backend/_test_*.mjs
+
+# === Cache / OS ===
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
+
+# === OpenClaude ===
+.openclaude/

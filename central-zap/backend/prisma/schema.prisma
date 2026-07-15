@@ -1,0 +1,199 @@
+// ============================================================
+// Central Zap - Schema do Prisma (SQLite)
+// Documentado em PT-BR para fins de estudo.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------
+// Usuário do sistema (faz login via JWT)
+// ------------------------------------------------------------
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String // hash bcrypt
+  createdAt DateTime @default(now())
+
+  accounts      WhatsappAccount[]
+  tags          Tag[]
+  quickReplies  QuickReply[]
+  reminders     Reminder[]
+  contacts      Contact[]
+  notes         Note[]
+  messages      Message[]
+  scheduled     ScheduledMessage[]
+}
+
+// ------------------------------------------------------------
+// Conta do WhatsApp conectada por um usuário
+// ------------------------------------------------------------
+model WhatsappAccount {
+  id           String   @id @default(cuid())
+  name         String // nome personalizado (ex: "Vendas")
+  phone        String? // número conectado (preenchido após conexão)
+  status       String   @default("disconnected") // connected | disconnected | qr | connecting
+  sessionPath  String // pasta da sessão (sessions/{id})
+  dndEnabled   Boolean  @default(false) // Não perturbe ativo?
+  dndUntil     DateTime? // até quando o DND vale (null = até desativar manualmente)
+  color        String   @default("#10b981") // cor do badge da conta
+  createdAt    DateTime @default(now())
+  lastActivityAt DateTime?
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  contacts     Contact[]
+  messages     Message[]
+  scheduled    ScheduledMessage[]
+}
+
+// ------------------------------------------------------------
+// Contato (pessoa que conversa com a conta do WhatsApp)
+// As relações de mensagens e tags ficam aqui.
+// ------------------------------------------------------------
+model Contact {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Contato pertence a uma conta do WhatsApp (e ao dono do sistema)
+  accountId String
+  account   WhatsappAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messages   Message[]
+  tags       ContactTag[]
+  notes      Note[]
+  reminders  Reminder[]
+}
+
+// ------------------------------------------------------------
+// Mensagem trocada em uma conversa
+// ------------------------------------------------------------
+model Message {
+  id          String   @id @default(cuid())
+  body        String
+  fromMe      Boolean // true = enviada por nós
+  status      String   @default("received") // received | sent | delivered | read | failed
+  read        Boolean  @default(false)
+  timestamp   DateTime @default(now())
+
+  contactId String
+  contact  Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  accountId String
+  account  WhatsappAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([contactId, timestamp])
+}
+
+// ------------------------------------------------------------
+// Tag customizável (ex: "cliente", "fornecedor", "urgente")
+// ------------------------------------------------------------
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#10b981")
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tags ContactTag[]
+}
+
+// ------------------------------------------------------------
+// Tabela de junção N:N entre Contact e Tag
+// ------------------------------------------------------------
+model ContactTag {
+  id        String @id @default(cuid())
+  contactId String
+  tagId     String
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, tagId])
+}
+
+// ------------------------------------------------------------
+// Resposta rápida (atalhos digitados com "/")
+// ------------------------------------------------------------
+model QuickReply {
+  id        String   @id @default(cuid())
+  shortcut  String // ex: "saudacao"
+  message   String
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ------------------------------------------------------------
+// Mensagem agendada (disparada via node-cron)
+// ------------------------------------------------------------
+model ScheduledMessage {
+  id         String   @id @default(cuid())
+  phone      String // número de destino (ex: 5511999999999)
+  body       String
+  scheduledFor DateTime
+  status     String   @default("pending") // pending | sent | cancelled | failed
+  createdAt  DateTime @default(now())
+
+  accountId String
+  account   WhatsappAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ------------------------------------------------------------
+// Lembrete vinculado a um contato
+// ------------------------------------------------------------
+model Reminder {
+  id          String   @id @default(cuid())
+  description String
+  value       Float? // valor em R$ (opcional)
+  dueAt       DateTime
+  recurrence  String   @default("once") // once | monthly
+  status      String   @default("pending") // pending | done | snoozed | deleted
+  createdAt   DateTime @default(now())
+
+  contactId String
+  contact  Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ------------------------------------------------------------
+// Nota interna por conversa (nunca enviada ao contato)
+// ------------------------------------------------------------
+model Note {
+  id        String   @id @default(cuid())
+  content   String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  contactId String
+  contact  Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
