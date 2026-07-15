@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(F=\"/c/Users/bruno/OneDrive/Business Fonte Dev/Projetos/Central Zap/central-zap/frontend\")",
+      "Read(//c/Users/bruno/OneDrive/Business/Fonte Dev/Projetos/Central Zap/**)",
+      "Bash(npm run:*)"
+    ]
+  }
+}
